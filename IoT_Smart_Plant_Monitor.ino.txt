@@ -1,0 +1,62 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+
+// Pins
+int soilMoisturePin = A0;
+int lightSensorPin = A1;
+int tempPin = A2;
+int waterPumpPin = D1;
+
+// WiFi credentials
+const char* ssid = "Your_WiFi_SSID";
+const char* password = "Your_WiFi_Password";
+
+// ThingSpeak API (or any IoT dashboard)
+String apiKey = "YOUR_API_KEY";
+String server = "http://api.thingspeak.com/update";
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(waterPumpPin, OUTPUT);
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting");
+  while(WiFi.status() != WL_CONNECTED){
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Connected!");
+}
+
+void loop() {
+  int soilMoisture = analogRead(soilMoisturePin);
+  int lightLevel = analogRead(lightSensorPin);
+  int tempValue = analogRead(tempPin);
+  
+  Serial.print("Soil:");
+  Serial.print(soilMoisture);
+  Serial.print(" Light:");
+  Serial.print(lightLevel);
+  Serial.print(" Temp:");
+  Serial.println(tempValue);
+  
+  // Auto water if soil is dry
+  if(soilMoisture < 400){
+    digitalWrite(waterPumpPin, HIGH);
+    delay(5000); // Water for 5 seconds
+    digitalWrite(waterPumpPin, LOW);
+  }
+  
+  // Send data to IoT dashboard
+  if(WiFi.status() == WL_CONNECTED){
+    HTTPClient http;
+    String url = server + "?api_key=" + apiKey + "&field1=" + soilMoisture + "&field2=" + lightLevel + "&field3=" + tempValue;
+    http.begin(url);
+    int httpResponseCode = http.GET();
+    if(httpResponseCode>0){
+      Serial.println("Data sent successfully");
+    }
+    http.end();
+  }
+  
+  delay(60000); // Send data every 1 minute
+}
